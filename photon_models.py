@@ -2,6 +2,7 @@ from sys import path
 path.append('./sunxspex')
 from sunxspex import thermal_spectrum
 from astropy import units as u
+from astropy import constants as const
 import numpy as np
 from sunxspex.io import chianti_kev_cont_common_load, load_xray_abundances
 from scipy.stats.mstats import gmean
@@ -10,7 +11,7 @@ from copy import copy
 import sunpy
 
 class f_vth:
-    def __init__(self, energies=None):
+    def __init__(self, energies=None, astropy_conversion=True):
         """Class f_vth combines the outputs of the chianti_kev_lines code already available in Sunxspex and the 
         output of my translation of chianti_kev_cont.pro.
         
@@ -19,6 +20,10 @@ class f_vth:
         energies : `astropy.units.Quantity` (list with units u.keV)
                 A list of energy bin edges. Can be arbitrary here since this is only needed to initiate the ChiantiThermalSpectrum
                 class. 
+                
+        astropy_conversion: bool
+                Use the angstrum to keV conversion from astropy or IDL.
+                Default: True
 
         Notes
         -----
@@ -34,7 +39,12 @@ class f_vth:
         # load in everything for the chianti_kev_cont code of "mine". This only needs done once so do it here.
         self.continuum_info = chianti_kev_cont_common_load()
         self.abundance = load_xray_abundances(abundance_type="sun_coronal")
-        self.conversion = self.continuum_info[1]['edge_str']['CONVERSION']
+
+        if astropy_conversion:
+            self.conversion = (const.h * const.c / u.AA).to_value(u.keV)
+        else:
+            self.conversion = self.continuum_info[1]['edge_str']['CONVERSION'] # keV to A conversion, ~12.39854
+
         self.ewvl  = self.conversion/self.continuum_info[1]['edge_str']['WVL'] # wavelengths from A to keV
         self.wwvl  = np.diff(self.continuum_info[1]['edge_str']['WVLEDGE']) # 'wavestep' in IDL
         self.nwvl  = len(self.ewvl)
